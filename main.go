@@ -22,9 +22,17 @@ type User struct {
 type Goal struct {
 	ID        int
 	Content   string
+	UserID    int
 	CreatedAt time.Time
 	Complete  bool
-	UserID    int
+}
+
+type GoalTmp struct {
+	ID        int
+	Content   string
+	UserID    string
+	CreatedAt time.Time
+	Complete  bool
 }
 
 // Declare Global Variables
@@ -54,33 +62,69 @@ func index(c *gin.Context) {
 }
 
 func goalsGet(c *gin.Context) {
-    goals := getAllGoals()
-    content := gin.H{"goals": goals,}
-    c.JSON(200, content)
+	goals := getAllGoals()
+	content := gin.H{"goals": goals}
+	c.JSON(200, content)
 }
 
 func goalsDetail(c *gin.Context) {
-    goalId := c.Params.ByName("id")
-    gId, _ := strconv.Atoi(goalId)
-    goal := readGoal(gId)
-    content := gin.H{"goal": goal}
-    c.JSON(200, content)
+	goalId := c.Params.ByName("id")
+	gId, _ := strconv.Atoi(goalId)
+	goal := readGoal(gId)
+	content := gin.H{"goal": goal}
+	c.JSON(200, content)
 }
 
 func goalsPost(c *gin.Context) {
-	var json Goal
+	var json GoalTmp
+	c.Bind(&json)
+	userIdInt, err := strconv.Atoi(json.UserID)
+	checkErr(err, "Error converting POST Form")
+	goal := createGoal(json.Content, userIdInt)
+	if goal.Content == json.Content {
+		content := gin.H{
+			"result": "success",
+			"goal":   goal,
+		}
+		c.JSON(201, content)
+	} else {
+		c.JSON(500, gin.H{"result": "An error occurred"})
+	}
+}
 
-    c.Bind(&json)
-    goal := createGoal(json.Content, json.UserID)
-    if goal.Content == json.Content {
-        content := gin.H{
-            "result": "success",
-            "goal": goal,
-        }
-        c.JSON(201, content)
-    } else {
-        c.JSON(500, gin.H{"result": "An error occurred"})
-    }
+func usersGet(c *gin.Context) {
+	users := getAllUsers()
+	content := gin.H{"users": users}
+	c.JSON(200, content)
+}
+
+func usersDetail(c *gin.Context) {
+	userId := c.Params.ByName("id")
+	uId, _ := strconv.Atoi(userId)
+	user := readUser(uId)
+	content := gin.H{"user": user}
+	c.JSON(200, content)
+}
+
+func usersPost(c *gin.Context) {
+	var json User
+	c.Bind(&json)
+	user := createUser(json.FirstName, json.LastName, json.Email)
+	if user.Email == json.Email {
+		content := gin.H{
+			"result": "success",
+			"user":   user,
+		}
+		c.JSON(201, content)
+	} else {
+		c.JSON(500, gin.H{"result": "An error occurred"})
+	}
+}
+
+func markComplete(c *gin.Context) {
+	userId := c.Params.ByName("id")
+	uId, _ := strconv.Atoi(userId)
+
 }
 
 // User CRUD
@@ -132,6 +176,8 @@ func createGoal(content string, userId int) Goal {
 	db.Create(&goal)
 
 	return goal
+	userId := c.Params.ByName("id")
+	uId, _ := strconv.Atoi(userId)
 }
 
 func readGoal(id int) Goal {
@@ -151,6 +197,8 @@ func updateGoal(id int, newGoal Goal) Goal {
 }
 
 func deleteGoal(id int) Goal {
+	userId := c.Params.ByName("id")
+	uId, _ := strconv.Atoi(userId)
 	var goal Goal
 	db.Delete(db.First(&goal, id))
 
@@ -158,12 +206,20 @@ func deleteGoal(id int) Goal {
 }
 
 func getAllGoals() []Goal {
-    var goals []Goal
-    db.Find(&goals)
-    
-    return goals
+	var goals []Goal
+	db.Find(&goals)
+
+	return goals
 }
 
+func makeGoalComplete(id int) {
+	var goal Goal
+	db.first(&goal, id)
+	goal.Complete = true
+	db.save(&goal)
+}
+
+// Main function
 func main() {
 	app := gin.Default()
 
@@ -173,6 +229,14 @@ func main() {
 	app.GET("/goals", goalsGet)
 	app.POST("/goals", goalsPost)
 	app.GET("/goals/:id", goalsDetail)
+
+	app.GET("/users", usersGet)
+	app.POST("/users", usersPost)
+	app.GET("/users/:id", usersDetail)
+
+	app.GET("/markComplete/:id", markComplete)
+	app.GET("/uncompleteGoals", uncompleteGoals)
+	app.GET("/completeGoals", completeGoals)
 
 	// Define Port
 	app.Run(":8080")
