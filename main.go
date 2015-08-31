@@ -124,7 +124,24 @@ func usersPost(c *gin.Context) {
 func markComplete(c *gin.Context) {
 	userId := c.Params.ByName("id")
 	uId, _ := strconv.Atoi(userId)
+	goal := markGoalComplete(uId)
+	c.JSON(201, gin.H{"result": "success", "goal": goal})
+}
 
+func uncompleteGoals(c *gin.Context) {
+	uncompleteGoals := getUncompleteGoals()
+	content := gin.H{
+		"uncomplete goals": uncompleteGoals,
+	}
+	c.JSON(200, content)
+}
+
+func completeGoals(c *gin.Context) {
+	completeGoals := getCompleteGoals()
+	content := gin.H{
+		"complete goals": completeGoals,
+	}
+	c.JSON(200, content)
 }
 
 // User CRUD
@@ -212,11 +229,24 @@ func getAllGoals() []Goal {
 	return goals
 }
 
-func makeGoalComplete(id int) {
+func markGoalComplete(id int) Goal {
 	var goal Goal
 	db.first(&goal, id)
 	goal.Complete = true
 	db.save(&goal)
+	return goal
+}
+
+func getUncompleteGoals() []Goal {
+	var goals []Goal
+	db.Where("complete = ?", false).Find(&goals)
+	return goals
+}
+
+func getCompleteGoals() []Goal {
+	var goals []Goal
+	db.Where("complete = ?", true).find(&goals)
+	return goals
 }
 
 // Main function
